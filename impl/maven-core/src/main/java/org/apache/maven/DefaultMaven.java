@@ -214,12 +214,14 @@ public class DefaultMaven implements Maven {
         try {
             MavenChainedWorkspaceReader chainedWorkspaceReader =
                     new MavenChainedWorkspaceReader(request.getWorkspaceReader(), ideWorkspaceReader);
-            // Add SPI workspace readers to the chain — looked up dynamically so that
-            // implementations discovered from core extensions are included (extensions
-            // are loaded after the container is bootstrapped, so constructor injection
-            // would miss them).
-            for (org.apache.maven.api.spi.WorkspaceReader spiReader :
-                    lookup.lookupList(org.apache.maven.api.spi.WorkspaceReader.class)) {
+            // Add SPI workspace readers to the chain. The holder is looked up lazily so that
+            // implementations contributed by core extensions are included — extensions are loaded
+            // after the container is bootstrapped, so injecting the readers into this class
+            // directly would miss them.
+            for (org.apache.maven.api.spi.WorkspaceReader spiReader : lookup.lookup(
+                            org.apache.maven.resolver.SpiWorkspaceReadersHolder.class)
+                    .getWorkspaceReaders()
+                    .values()) {
                 chainedWorkspaceReader.addReader(new SpiWorkspaceReaderAdapter(spiReader));
             }
             try (CloseableSession closeableSession = newCloseableSession(request, chainedWorkspaceReader)) {
